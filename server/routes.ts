@@ -12,6 +12,9 @@ import Stripe from "stripe";
 import { format } from "date-fns";
 import { User } from "@shared/schema";
 
+// Import analysis routes for our comprehensive MLB data collection system
+import analysisRoutes from './routes/analysisRoutes';
+
 // Initialize session store
 const SessionStore = MemoryStore(session);
 
@@ -485,6 +488,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       totalPicksAnalyzed: 387
     });
   });
+  
+  // Register our data collection and analysis routes
+  app.use("/api/analysis", analysisRoutes);
 
   // Create HTTP server
   const httpServer = createServer(app);
