@@ -11,6 +11,7 @@ import Home from "@/pages/home";
 import Picks from "@/pages/picks";
 import News from "@/pages/news";
 import Analysis from "@/pages/analysis";
+import DetailedAnalysis from "@/pages/detailedAnalysis";
 import Subscribe from "@/pages/subscribe";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/picks" component={Picks} />
       <Route path="/news" component={News} />
       <Route path="/analysis" component={Analysis} />
+      <Route path="/detailed-analysis" component={DetailedAnalysis} />
       <Route path="/subscribe" component={Subscribe} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />

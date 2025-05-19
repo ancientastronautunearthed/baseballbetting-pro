@@ -75,7 +75,11 @@ const GameCard = ({ game, showFullAnalysis = false }: GameCardProps) => {
                 Recommended: <span className="text-accent">{game.prediction.recommendedBet}</span>
               </span>
               {!showFullAnalysis && (
-                <Button size="sm" className="text-white bg-primary hover:bg-opacity-90 px-3 py-1 rounded text-sm font-medium">
+                <Button 
+                  size="sm" 
+                  className="text-white bg-primary hover:bg-opacity-90 px-3 py-1 rounded text-sm font-medium"
+                  onClick={() => window.location.href = `/detailed-analysis?id=${game.id}`}
+                >
                   Full Analysis
                 </Button>
               )}
