@@ -73,6 +73,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Development test login route - ONLY FOR DEVELOPMENT TESTING
+  app.get("/api/auth/dev-login", async (req, res) => {
+    if (process.env.NODE_ENV !== "development") {
+      return res.status(404).json({ message: "Not found" });
+    }
+    
+    try {
+      // Check if test user exists
+      let user = await storage.getUserByUsername("testuser");
+      
+      // Create test user if it doesn't exist
+      if (!user) {
+        const hashedPassword = await hashPassword("password123");
+        user = await storage.createUser({
+          username: "testuser",
+          password: hashedPassword,
+          email: "test@example.com"
+        });
+        
+        // Update to pro subscription for testing
+        user = await storage.updateUserSubscriptionTier(user.id, "pro");
+      }
+      
+      // Log the user in
+      req.login(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Error logging in" });
+        }
+        return res.json({ 
+          id: user.id, 
+          username: user.username, 
+          email: user.email,
+          subscriptionTier: user.subscriptionTier,
+          message: "Development test user logged in successfully"
+        });
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {

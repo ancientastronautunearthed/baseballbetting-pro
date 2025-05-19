@@ -72,7 +72,37 @@ const SubscribePage = () => {
   const [location] = useLocation();
   const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [clientSecret, setClientSecret] = useState<string>("");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const { toast } = useToast();
+
+  // Function to test login in development mode
+  const handleTestLogin = async () => {
+    try {
+      const res = await fetch('/api/auth/dev-login');
+      const data = await res.json();
+      
+      if (res.ok) {
+        toast({
+          title: "Development Login Successful",
+          description: `Logged in as ${data.username}`,
+        });
+        setIsAuthenticated(true);
+        window.location.reload(); // Reload to reflect auth state
+      } else {
+        toast({
+          title: "Login Failed",
+          description: data.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Could not connect to server",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Get URL parameters
   const params = new URLSearchParams(location.split('?')[1]);
