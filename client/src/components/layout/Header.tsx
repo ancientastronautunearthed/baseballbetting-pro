@@ -18,6 +18,7 @@ const Header = () => {
     { name: 'News', path: '/news' },
     { name: 'Analysis', path: '/analysis' },
     { name: 'Bankroll Manager', path: '/bankroll' },
+    { name: 'Bet Tracker', path: '/bet-tracker' },
     { name: 'Subscriptions', path: '/subscribe' }
   ];
 

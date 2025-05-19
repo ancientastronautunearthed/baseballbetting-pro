@@ -13,6 +13,7 @@ import News from "@/pages/news";
 import Analysis from "@/pages/analysis";
 import DetailedAnalysis from "@/pages/detailedAnalysis";
 import BankrollManager from "@/pages/bankrollManager";
+import BetTracker from "@/pages/betTracker";
 import Subscribe from "@/pages/subscribe";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/analysis" component={Analysis} />
       <Route path="/detailed-analysis" component={DetailedAnalysis} />
       <Route path="/bankroll" component={BankrollManager} />
+      <Route path="/bet-tracker" component={BetTracker} />
       <Route path="/subscribe" component={Subscribe} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
