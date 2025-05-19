@@ -15,6 +15,7 @@ const Header = () => {
   const navLinks = [
     { name: 'Dashboard', path: '/dashboard' },
     { name: 'Today\'s Picks', path: '/picks' },
+    { name: 'Daily Schedule', path: '/schedule' },
     { name: 'News', path: '/news' },
     { name: 'Analysis', path: '/analysis' },
     { name: 'Bankroll Manager', path: '/bankroll' },

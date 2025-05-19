@@ -14,6 +14,7 @@ import Analysis from "@/pages/analysis";
 import DetailedAnalysis from "@/pages/detailedAnalysis";
 import BankrollManager from "@/pages/bankrollManager";
 import BetTracker from "@/pages/betTracker";
+import DailySchedule from "@/pages/dailySchedule";
 import Subscribe from "@/pages/subscribe";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/detailed-analysis" component={DetailedAnalysis} />
       <Route path="/bankroll" component={BankrollManager} />
       <Route path="/bet-tracker" component={BetTracker} />
+      <Route path="/schedule" component={DailySchedule} />
       <Route path="/subscribe" component={Subscribe} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
