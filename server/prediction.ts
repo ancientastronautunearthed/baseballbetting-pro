@@ -1,10 +1,44 @@
 import { Game, InsertPrediction } from "@shared/schema";
+import { runPredictionPipeline } from './dataCollection/dataIntegration';
+import { initializeDataSystem } from './dataCollection/integrationManager';
+
+// Initialize our data collection system when this module is loaded
+initializeDataSystem().catch(err => console.error("Error initializing data system:", err));
 
 /**
- * Generates predictions for MLB games based on various factors
- * In a real implementation, this would use a complex algorithm and machine learning model
+ * Generates predictions for MLB games using our comprehensive data collection system
+ * This now uses an advanced research pipeline that accesses multiple data sources
  */
 export async function generatePredictions(games: Game[]): Promise<InsertPrediction[]> {
+  console.log(`Generating predictions for ${games.length} games using MLB Edge research system`);
+  
+  try {
+    // Use our advanced prediction pipeline with comprehensive data collection
+    const predictions = await runPredictionPipeline(games);
+    
+    // If we successfully got predictions from our pipeline, return them
+    if (predictions && predictions.length > 0) {
+      console.log("Successfully generated predictions using MLB Edge research system");
+      return predictions;
+    }
+    
+    // If the pipeline returned no predictions, fall back to the legacy method
+    console.log("No predictions from pipeline, using fallback method");
+    return generateLegacyPredictions(games);
+  } catch (error) {
+    console.error("Error in comprehensive prediction pipeline:", error);
+    
+    // Fall back to the legacy prediction method if there's an error
+    console.log("Using legacy prediction method due to error");
+    return generateLegacyPredictions(games);
+  }
+}
+
+/**
+ * Legacy prediction method that was used before the comprehensive data system
+ * Only used as a fallback when the main system encounters issues
+ */
+async function generateLegacyPredictions(games: Game[]): Promise<InsertPrediction[]> {
   const predictions: InsertPrediction[] = [];
   
   for (const game of games) {

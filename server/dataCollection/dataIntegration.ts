@@ -9,6 +9,11 @@ import { DataSource, allDataSources, getDataSourcesByType } from './dataSources'
 import { dataCategories, dataCollectionErrorStrategy, getDataCollectionPlanForGame } from './collectionStrategy';
 import { Game, Prediction, InsertPrediction } from '../../shared/schema';
 
+// This is a type declaration to help with compatibility
+type SourceFallbacks = {
+  [key: string]: string[]
+};
+
 interface BaseballData {
   gameId: string;
   date: string;
@@ -416,11 +421,11 @@ export function generateGamePrediction(game: Game, processedData: Record<string,
   // 9. Betting market wisdom
   
   // Simplified mock prediction logic
-  const homeTeamWinPercentage = simulatePredictionModel(processedData, true);
-  const awayTeamWinPercentage = 100 - homeTeamWinPercentage;
+  const homeTeamWinProbability = simulatePredictionModel(processedData, true);
+  const awayTeamWinProbability = 100 - homeTeamWinProbability;
   
   // Determine a favorite based on win percentage
-  const favoredTeam = homeTeamWinPercentage > awayTeamWinPercentage ? 'home' : 'away';
+  const favoredTeam = homeTeamWinProbability > awayTeamWinProbability ? 'home' : 'away';
   const favoredTeamName = favoredTeam === 'home' ? homeTeam : awayTeam;
   const underdogTeamName = favoredTeam === 'home' ? awayTeam : homeTeam;
   
@@ -448,21 +453,18 @@ export function generateGamePrediction(game: Game, processedData: Record<string,
   }
   
   // Value bet if our model gives the team a higher win % than the betting market implies
-  const homeTeamValueBet = homeTeamWinPercentage > oddsImpliedProbability.home + 5;
-  const awayTeamValueBet = awayTeamWinPercentage > oddsImpliedProbability.away + 5;
+  const homeTeamValueBet = homeTeamWinProbability > oddsImpliedProbability.home + 5;
+  const awayTeamValueBet = awayTeamWinProbability > oddsImpliedProbability.away + 5;
   const isValueBet = favoredTeam === 'home' ? homeTeamValueBet : awayTeamValueBet;
   
   // Generate recommendation
-  const recommendedBet = {
-    type: favoredTeam === 'home' ? 'HOME_TEAM' : 'AWAY_TEAM',
-    confidence: favoredTeam === 'home' ? homeTeamWinPercentage : awayTeamWinPercentage,
-    isValueBet
-  };
+  const recommendedBet = favoredTeam === 'home' ? 'HOME_TEAM' : 'AWAY_TEAM';
+  const confidenceLevel = favoredTeam === 'home' ? homeTeamWinProbability : awayTeamWinProbability;
   
   // Generate an analysis text
   let analysisText = '';
   if (favoredTeam === 'home') {
-    analysisText = `The ${homeTeam} are favored with a ${homeTeamWinPercentage.toFixed(1)}% chance to win against the ${awayTeam}. `;
+    analysisText = `The ${homeTeam} are favored with a ${homeTeamWinProbability.toFixed(1)}% chance to win against the ${awayTeam}. `;
     
     if (processedData.teamStats && processedData.teamStats.home) {
       analysisText += `${homeTeam} have shown strong performance at home this season, with their batting and pitching outperforming expectations. `;
@@ -476,7 +478,7 @@ export function generateGamePrediction(game: Game, processedData: Record<string,
       analysisText += `This represents a value opportunity as the betting market is only giving ${homeTeam} an implied ${oddsImpliedProbability.home.toFixed(1)}% chance. `;
     }
   } else {
-    analysisText = `The ${awayTeam} are favored with a ${awayTeamWinPercentage.toFixed(1)}% chance to win against the ${homeTeam}. `;
+    analysisText = `The ${awayTeam} are favored with a ${awayTeamWinProbability.toFixed(1)}% chance to win against the ${homeTeam}. `;
     
     if (processedData.teamStats && processedData.teamStats.away) {
       analysisText += `${awayTeam} have been performing exceptionally well on the road this season. `;
@@ -497,27 +499,26 @@ export function generateGamePrediction(game: Game, processedData: Record<string,
   
   // Total runs prediction
   const predictedTotalRuns = simulateTotalRunsPrediction(processedData);
-  const overUnderRecommendation = predictedTotalRuns > (processedData.bettingOdds?.total?.line || 8.5) 
+  const recommendedTotalRunsBet = predictedTotalRuns > (processedData.bettingOdds?.total?.line || 8.5) 
     ? 'OVER' 
     : 'UNDER';
   
+  // Determine tier based on confidence and value
+  let tier = 'basic';
+  if (confidenceLevel >= 70 || isValueBet) {
+    tier = isValueBet ? 'elite' : 'pro';
+  }
+  
   return {
     gameId: game.id,
-    homeTeamWinPercentage,
-    awayTeamWinPercentage,
+    homeTeamWinProbability: homeTeamWinProbability / 100, // Convert to decimal format
+    awayTeamWinProbability: awayTeamWinProbability / 100, // Convert to decimal format
     predictedTotalRuns,
-    recommendedBet: recommendedBet.type,
-    recommendedTotalRunsBet: overUnderRecommendation,
+    recommendedBet,
+    recommendedTotalRunsBet,
     analysis: analysisText,
-    confidence: recommendedBet.confidence,
-    isValueBet: recommendedBet.isValueBet,
-    factors: JSON.stringify({
-      teamPerformance: true,
-      pitchingMatchup: true,
-      weather: Boolean(processedData.gameInfo?.weather),
-      injuries: Boolean(processedData.situationalFactors?.homeTeamInjuryImpact),
-      betting: Boolean(processedData.bettingOdds)
-    })
+    confidenceLevel: confidenceLevel / 100, // Convert to decimal format
+    tier
   };
 }
 
@@ -649,7 +650,7 @@ export async function runPredictionPipeline(games: Game[]): Promise<InsertPredic
       console.log(`[Prediction Pipeline] Processing game ${game.id}: ${game.awayTeam} @ ${game.homeTeam}`);
       
       // 1. Collect data from all sources
-      const collectedData = await collectGameData(game.mlbId, game.date);
+      const collectedData = await collectGameData(game.mlbId, game.gameDate);
       
       // 2. Process data into unified format
       const processedData = processGameData(collectedData);
@@ -658,7 +659,7 @@ export async function runPredictionPipeline(games: Game[]): Promise<InsertPredic
       const prediction = generateGamePrediction(game, processedData);
       
       predictions.push(prediction);
-      console.log(`[Prediction Pipeline] Generated prediction for ${game.id} with ${prediction.confidence.toFixed(1)}% confidence`);
+      console.log(`[Prediction Pipeline] Generated prediction for ${game.id} with ${prediction.confidenceLevel.toFixed(2)} confidence`);
       
     } catch (error) {
       console.error(`[Prediction Pipeline] Error processing game ${game.id}:`, error);
