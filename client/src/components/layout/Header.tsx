@@ -17,6 +17,7 @@ const Header = () => {
     { name: 'Today\'s Picks', path: '/picks' },
     { name: 'News', path: '/news' },
     { name: 'Analysis', path: '/analysis' },
+    { name: 'Bankroll Manager', path: '/bankroll' },
     { name: 'Subscriptions', path: '/subscribe' }
   ];
 
