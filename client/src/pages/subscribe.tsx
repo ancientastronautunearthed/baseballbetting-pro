@@ -201,7 +201,19 @@ const SubscribePage = () => {
 
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold font-heading text-primary mb-6 text-center">Subscribe to MLB Edge</h1>
+          <div className="flex flex-col md:flex-row justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold font-heading text-primary">Subscribe to MLB Edge</h1>
+            {import.meta.env.DEV && (
+              <Button 
+                onClick={handleTestLogin} 
+                variant="outline"
+                size="sm"
+                className="mt-2 md:mt-0 border-dashed border-gray-400 text-gray-500"
+              >
+                Dev Test Login
+              </Button>
+            )}
+          </div>
           <p className="text-lg text-gray-600 mb-8 text-center">Choose the plan that fits your needs and start making smarter MLB wagers today.</p>
           
           <Tabs 

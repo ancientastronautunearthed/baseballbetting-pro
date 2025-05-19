@@ -18,7 +18,7 @@ const SessionStore = MemoryStore(session);
 // Initialize Stripe
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "sk_test_dummy";
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2023-10-16" as any,
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
