@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 98%;
+  --foreground: 222 47% 11%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 47.4% 11.2%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 47.4% 11.2%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --primary: 215 86% 16%; /* MLB Edge primary blue #0B2545 */
+  --primary-foreground: 210 40% 98%;
+  --secondary: 355 80% 50%; /* MLB Edge secondary red #D72638 */
+  --secondary-foreground: 0 0% 100%;
+  --accent: 142 67% 48%; /* MLB Edge accent green #4BB543 */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 100% 50%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 215 86% 16%;
+  --radius: 0.5rem;
+
+  /* Chart colors */
+  --chart-1: 215 86% 16%;
+  --chart-2: 355 80% 50%;
+  --chart-3: 142 67% 48%;
+  --chart-4: 39 100% 50%;
+  --chart-5: 262 83% 58%;
+
+  /* Sidebar colors */
+  --sidebar-background: 215 86% 16%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-primary: 355 80% 50%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 142 67% 48%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 215 74% 21%;
+  --sidebar-ring: 214.3 31.8% 91.4%;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --primary: 215 86% 16%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 355 80% 50%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 142 67% 48%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 212.7 26.8% 83.9%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-bold;
+  }
+}
+
+@layer components {
+  .stat-card {
+    @apply transition-all duration-200;
+  }
+  .stat-card:hover {
+    @apply transform -translate-y-1 shadow-lg;
+  }
+  .subscription-card {
+    @apply transition-all duration-300;
+  }
+  .subscription-card:hover {
+    @apply transform scale-[1.03];
+  }
+}
+
+/* Define custom fonts */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Source+Sans+Pro:wght@400;600;700&display=swap');
+
+@layer base {
+  :root {
+    --font-sans: 'Source Sans Pro', sans-serif;
+    --font-heading: 'Roboto Condensed', sans-serif;
+  }
+  
+  .font-heading {
+    font-family: var(--font-heading);
+  }
+}
