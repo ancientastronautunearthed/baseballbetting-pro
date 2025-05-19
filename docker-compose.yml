@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  postgres_db:
+    image: postgres:16 # Or your preferred PostgreSQL version
+    container_name: baseballbettingpro_postgres_docker
+    environment:
+      POSTGRES_USER: bbp_user
+      POSTGRES_PASSWORD: Me*Ic0040424
+      POSTGRES_DB: baseballbettingpro_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_docker:/var/lib/postgresql/data
+
+volumes:
+  postgres_data_docker:

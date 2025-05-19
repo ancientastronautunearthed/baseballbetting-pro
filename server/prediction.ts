@@ -1,303 +1,240 @@
-import { Game, InsertPrediction } from "@shared/schema";
-import { runPredictionPipeline } from './dataCollection/dataIntegration';
-import { initializeDataSystem } from './dataCollection/integrationManager';
+import { Game, InsertPrediction } from "@shared/schema"; // Using path alias, ensure tsconfig is set up
+import { runPredictionPipeline } from './dataCollection/dataIntegration'; // This will be the advanced ML pipeline
+import { initializeDataSystem } from './dataCollection/integrationManager'; // Manages data sources
 
-// Initialize our data collection system when this module is loaded
-initializeDataSystem().catch(err => console.error("Error initializing data system:", err));
+// Initialize the data collection system when this module is loaded.
+// This is a one-time setup for data source clients, etc.
+initializeDataSystem().catch(err => console.error("🔴 Error initializing data system:", err));
 
 /**
- * Generates predictions for MLB games using our comprehensive data collection system
- * This now uses an advanced research pipeline that accesses multiple data sources
+ * Generates predictions for MLB games.
+ * Attempts to use the advanced "MLB Edge" research pipeline (runPredictionPipeline).
+ * Falls back to a legacy rule-based system if the advanced pipeline fails or returns no predictions.
+ * @param games An array of Game objects for which to generate predictions.
+ * @returns A Promise resolving to an array of InsertPrediction objects.
  */
 export async function generatePredictions(games: Game[]): Promise<InsertPrediction[]> {
-  console.log(`Generating predictions for ${games.length} games using MLB Edge research system`);
-  
+  console.log(`⚪️ Generating predictions for ${games.length} games using MLB Edge research system...`);
+
   try {
-    // Use our advanced prediction pipeline with comprehensive data collection
+    // Attempt to use the advanced prediction pipeline.
+    // This function is expected to be developed according to the Manus.im ML design documents,
+    // eventually calling models deployed on GCP (e.g., Vertex AI).
     const predictions = await runPredictionPipeline(games);
-    
-    // If we successfully got predictions from our pipeline, return them
+
     if (predictions && predictions.length > 0) {
-      console.log("Successfully generated predictions using MLB Edge research system");
+      console.log("🟢 Successfully generated predictions using MLB Edge research system.");
       return predictions;
     }
-    
-    // If the pipeline returned no predictions, fall back to the legacy method
-    console.log("No predictions from pipeline, using fallback method");
+
+    // If the pipeline returned no predictions, fall back to the legacy method.
+    console.warn("🟡 No predictions from MLB Edge pipeline, falling back to legacy method.");
     return generateLegacyPredictions(games);
   } catch (error) {
-    console.error("Error in comprehensive prediction pipeline:", error);
-    
-    // Fall back to the legacy prediction method if there's an error
-    console.log("Using legacy prediction method due to error");
+    console.error("🔴 Error in MLB Edge prediction pipeline:", error);
+    console.warn("🟡 Using legacy prediction method due to error in MLB Edge pipeline.");
     return generateLegacyPredictions(games);
   }
 }
 
 /**
- * Legacy prediction method that was used before the comprehensive data system
- * Only used as a fallback when the main system encounters issues
+ * Legacy prediction method.
+ * This is a simplified rule-based model, used as a fallback.
+ * The logic here is for demonstration and should be less relied upon as the ML pipeline matures.
+ * @param games An array of Game objects.
+ * @returns A Promise resolving to an array of InsertPrediction objects.
  */
 async function generateLegacyPredictions(games: Game[]): Promise<InsertPrediction[]> {
   const predictions: InsertPrediction[] = [];
-  
+  console.log(`⚙️ Generating ${games.length} predictions using LEGACY system...`);
+
   for (const game of games) {
-    // Calculate win probabilities based on home field advantage, team records, and moneylines
-    // This is a simplified model for demonstration
-    
-    // Parse records to get win percentages
+    // Ensure game.id is present, as it's crucial for gameId in InsertPrediction.
+    if (typeof game.id !== 'number') {
+        console.error(`🔴 Legacy Prediction: Game ID is missing or invalid for game involving ${game.homeTeam}. Skipping.`);
+        continue;
+    }
+
     let homeWinPct = 0.5;
     let awayWinPct = 0.5;
-    
-    if (game.homeTeamRecord) {
-      const [homeWins, homeLosses] = game.homeTeamRecord.split('-').map(n => parseInt(n));
-      homeWinPct = homeWins / (homeWins + homeLosses);
+
+    // Parse team records to get win percentages.
+    // Assumes record format "W-L" (e.g., "10-5").
+    try {
+        if (game.homeTeamRecord && /^\d+-\d+$/.test(game.homeTeamRecord)) {
+            const [homeWins, homeLosses] = game.homeTeamRecord.split('-').map(n => parseInt(n, 10));
+            if (homeWins + homeLosses > 0) {
+                homeWinPct = homeWins / (homeWins + homeLosses);
+            }
+        }
+
+        if (game.awayTeamRecord && /^\d+-\d+$/.test(game.awayTeamRecord)) {
+            const [awayWins, awayLosses] = game.awayTeamRecord.split('-').map(n => parseInt(n, 10));
+            if (awayWins + awayLosses > 0) {
+                awayWinPct = awayWins / (awayWins + awayLosses);
+            }
+        }
+    } catch (e) {
+        console.error(`🔴 Legacy Prediction: Error parsing team records for game ID ${game.id}:`, e);
+        // Continue with default 0.5 win percentages or skip game
     }
-    
-    if (game.awayTeamRecord) {
-      const [awayWins, awayLosses] = game.awayTeamRecord.split('-').map(n => parseInt(n));
-      awayWinPct = awayWins / (awayWins + awayLosses);
-    }
-    
-    // Factor in home field advantage (about 5% advantage historically)
+
+
+    // Factor in home field advantage (approx. 5% historically).
     homeWinPct += 0.05;
-    
-    // Factor in moneylines if available
-    if (game.homeTeamMoneyline && game.awayTeamMoneyline) {
-      // Convert moneylines to implied probabilities
-      let homeImpliedProb = 0;
-      let awayImpliedProb = 0;
-      
+    // Adjust away team to ensure probabilities sum closer to 1 before normalization.
+    // This is a simplistic adjustment.
+    awayWinPct -= 0.025; 
+    homeWinPct = Math.max(0, Math.min(1, homeWinPct)); // Clamp between 0 and 1
+    awayWinPct = Math.max(0, Math.min(1, awayWinPct)); // Clamp between 0 and 1
+
+
+    // Factor in moneylines if available.
+    if (game.homeTeamMoneyline != null && game.awayTeamMoneyline != null) {
+      let homeImpliedProb = 0.5;
+      let awayImpliedProb = 0.5;
+
       if (game.homeTeamMoneyline > 0) {
         homeImpliedProb = 100 / (game.homeTeamMoneyline + 100);
       } else {
         homeImpliedProb = Math.abs(game.homeTeamMoneyline) / (Math.abs(game.homeTeamMoneyline) + 100);
       }
-      
+
       if (game.awayTeamMoneyline > 0) {
         awayImpliedProb = 100 / (game.awayTeamMoneyline + 100);
       } else {
         awayImpliedProb = Math.abs(game.awayTeamMoneyline) / (Math.abs(game.awayTeamMoneyline) + 100);
       }
-      
-      // Normalize the probabilities
-      const totalProb = homeImpliedProb + awayImpliedProb;
-      homeImpliedProb = homeImpliedProb / totalProb;
-      awayImpliedProb = awayImpliedProb / totalProb;
-      
-      // Weight the implied probabilities with the record-based probabilities
+
+      // Simple averaging with moneyline implied probabilities (weighted more towards moneylines).
       homeWinPct = (homeWinPct + homeImpliedProb * 2) / 3;
       awayWinPct = (awayWinPct + awayImpliedProb * 2) / 3;
-      
-      // Normalize again
-      const totalWinPct = homeWinPct + awayWinPct;
-      homeWinPct = homeWinPct / totalWinPct;
-      awayWinPct = awayWinPct / totalWinPct;
     }
-    
-    // Calculate confidence level (higher difference = higher confidence)
+
+    // Normalize win percentages to sum to 1.
+    const totalWinPct = homeWinPct + awayWinPct;
+    if (totalWinPct > 0) {
+        homeWinPct = homeWinPct / totalWinPct;
+        awayWinPct = awayWinPct / totalWinPct;
+    } else { // Avoid division by zero if both somehow ended up <= 0
+        homeWinPct = 0.5;
+        awayWinPct = 0.5;
+    }
+
+
+    // Calculate confidence level (higher difference = higher confidence).
+    // Scale to a 0.5 - 1.0 range.
     const confidenceDiff = Math.abs(homeWinPct - awayWinPct);
-    const confidenceLevel = 0.5 + (confidenceDiff * 0.5); // Scale to 0.5-1.0 range
-    
-    // Determine recommended bet based on probabilities and moneylines
+    const confidenceLevel = Math.min(1.0, 0.5 + (confidenceDiff * 0.75)); // Adjusted scaling for a bit more variance
+
     let recommendedBet = '';
     let analysis = '';
-    
-    if (homeWinPct > awayWinPct && game.homeTeamMoneyline) {
-      // Home team is favored
-      if (game.homeTeamMoneyline > 0) {
-        // Home team is underdog in odds but we predict they'll win
-        recommendedBet = `${game.homeTeam} ML`;
-        analysis = generateHomeTeamFavoredAnalysis(game, true);
-      } else if (homeWinPct > 0.65) {
-        // Home team is heavily favored by our model
-        recommendedBet = `${game.homeTeam} ML`;
-        analysis = generateHomeTeamFavoredAnalysis(game, false);
-      } else {
-        // Consider run line or other bets
-        recommendedBet = `${game.homeTeam} ML`;
-        analysis = generateHomeTeamFavoredAnalysis(game, false);
-      }
-    } else if (awayWinPct > homeWinPct && game.awayTeamMoneyline) {
-      // Away team is favored
-      if (game.awayTeamMoneyline > 0) {
-        // Away team is underdog in odds but we predict they'll win
-        recommendedBet = `${game.awayTeam} ML`;
-        analysis = generateAwayTeamFavoredAnalysis(game, true);
-      } else if (awayWinPct > 0.65) {
-        // Away team is heavily favored by our model
-        recommendedBet = `${game.awayTeam} ML`;
-        analysis = generateAwayTeamFavoredAnalysis(game, false);
-      } else {
-        // Consider run line or other bets
-        recommendedBet = `${game.awayTeam} ML`;
-        analysis = generateAwayTeamFavoredAnalysis(game, false);
-      }
+
+    // Determine recommended bet (simplified logic).
+    if (homeWinPct > awayWinPct && game.homeTeamMoneyline != null) {
+      recommendedBet = `${game.homeTeamAbbreviation || game.homeTeam} ML`; // Use abbreviation if available
+      analysis = generateHomeTeamFavoredAnalysis(game, homeWinPct > (game.homeTeamMoneyline > 0 ? (100 / (game.homeTeamMoneyline + 100)) : (Math.abs(game.homeTeamMoneyline) / (Math.abs(game.homeTeamMoneyline) + 100))) + 0.05); // Simple value check
+    } else if (awayWinPct > homeWinPct && game.awayTeamMoneyline != null) {
+      recommendedBet = `${game.awayTeamAbbreviation || game.awayTeam} ML`; // Use abbreviation if available
+      analysis = generateAwayTeamFavoredAnalysis(game, awayWinPct > (game.awayTeamMoneyline > 0 ? (100 / (game.awayTeamMoneyline + 100)) : (Math.abs(game.awayTeamMoneyline) / (Math.abs(game.awayTeamMoneyline) + 100))) + 0.05); // Simple value check
     } else {
-      // Close game, consider totals
-      const totalRuns = 7.5 + (Math.random() > 0.5 ? 1 : 0);
+      // Fallback for very close games or missing moneylines for a primary bet.
+      // This part of the legacy system is highly simplistic.
+      const totalRuns = 7.5 + (Math.random() > 0.5 ? 1 : 0) + (Math.random() > 0.5 ? 0 : -1); // 6.5, 7.5, 8.5
       const overUnder = Math.random() > 0.5 ? 'Over' : 'Under';
-      recommendedBet = `${overUnder} ${totalRuns}`;
+      recommendedBet = `${overUnder} ${totalRuns.toFixed(1)}`;
       analysis = generateTotalRunsAnalysis(game, totalRuns, overUnder === 'Over');
     }
-    
-    // Determine tier based on confidence level
-    let tier = 'basic';
-    if (confidenceLevel >= 0.85) {
-      tier = 'basic';
-    } else if (confidenceLevel >= 0.7) {
-      tier = 'pro';
-    } else {
+
+    // Determine tier based on confidence level.
+    // Higher confidence predictions could be for higher tiers.
+    // The 'predictions' schema table has a 'tier' column (default 'basic').
+    // This logic assumes 'Elite' is the highest tier, 'Basic' the lowest.
+    let tier = 'basic'; // Default tier
+    if (confidenceLevel >= 0.85) { // Highest confidence
       tier = 'elite';
-    }
-    
+    } else if (confidenceLevel >= 0.70) { // Medium-high confidence
+      tier = 'pro';
+    } // else it remains 'basic' (lowest confidence in this legacy model)
+
     predictions.push({
-      gameId: game.id,
-      homeTeamWinProbability: homeWinPct,
-      awayTeamWinProbability: awayWinPct,
+      gameId: game.id, // This is critical
+      homeTeamWinProbability: parseFloat(homeWinPct.toFixed(4)),
+      awayTeamWinProbability: parseFloat(awayWinPct.toFixed(4)),
       recommendedBet,
-      confidenceLevel,
+      confidenceLevel: parseFloat(confidenceLevel.toFixed(4)),
       analysis,
       tier
+      // createdAt will be set by the database default if not provided here
     });
   }
-  
+
   return predictions;
 }
 
 /**
- * Generates analysis text for when home team is favored
+ * Generates placeholder analysis text for when the home team is favored by the legacy system.
+ * @param game The game object.
+ * @param isValueBet Whether the model considers this a value bet.
+ * @returns A string containing generated analysis.
  */
 function generateHomeTeamFavoredAnalysis(game: Game, isValueBet: boolean): string {
-  // Generate analysis based on common baseball factors
   const factors = [
-    `${game.homeTeam} have a strong home record this season.`,
-    `${game.homeTeam}'s starting pitcher has been dominant at home with a low ERA.`,
-    `${game.homeTeam} have won 7 of their last 10 games at home.`,
-    `${game.awayTeam} have struggled on the road this season.`,
-    `${game.awayTeam} are facing a tough pitching matchup today.`,
-    `Historical matchups favor ${game.homeTeam} in this ballpark.`,
-    `Weather conditions today favor ${game.homeTeam}'s style of play.`,
-    `${game.homeTeam} have a well-rested bullpen coming into this game.`,
-    `${game.awayTeam} are on the last leg of a long road trip and showing signs of fatigue.`,
-    `Key players for ${game.awayTeam} are underperforming in recent games.`
+    `${game.homeTeamAbbreviation || game.homeTeam} has shown a strong performance at home recently.`,
+    `The starting pitcher for ${game.homeTeamAbbreviation || game.homeTeam} has favorable historical stats in this matchup.`,
+    `${game.homeTeamAbbreviation || game.homeTeam}'s offense has been clicking, especially in home games.`,
+    `${game.awayTeamAbbreviation || game.awayTeam} has some inconsistencies when playing on the road.`,
+    `Key metrics suggest an edge for ${game.homeTeamAbbreviation || game.homeTeam} in today's conditions.`,
   ];
-  
-  // Select 3-4 random factors
-  const factorCount = Math.floor(Math.random() * 2) + 3;
-  const selectedFactors: string[] = [];
-  const usedIndexes: number[] = [];
-  
-  for (let i = 0; i < factorCount; i++) {
-    let index = Math.floor(Math.random() * factors.length);
-    while (usedIndexes.includes(index)) {
-      index = Math.floor(Math.random() * factors.length);
-    }
-    usedIndexes.push(index);
-    selectedFactors.push(factors[index]);
-  }
-  
-  // Combine factors into analysis
+  const selectedFactors = factors.sort(() => 0.5 - Math.random()).slice(0, 2); // Pick 2 random factors
   let analysis = selectedFactors.join(' ');
-  
-  // Add value bet statement if applicable
-  if (isValueBet) {
-    analysis += ` The current moneyline of ${game.homeTeamMoneyline} for ${game.homeTeam} presents significant value as our model gives them a much higher win probability than the odds suggest.`;
+  if (isValueBet && game.homeTeamMoneyline != null) {
+    analysis += ` The current moneyline of ${game.homeTeamMoneyline > 0 ? '+' : ''}${game.homeTeamMoneyline} for ${game.homeTeamAbbreviation || game.homeTeam} may offer value.`;
   }
-  
   return analysis;
 }
 
 /**
- * Generates analysis text for when away team is favored
+ * Generates placeholder analysis text for when the away team is favored by the legacy system.
+ * @param game The game object.
+ * @param isValueBet Whether the model considers this a value bet.
+ * @returns A string containing generated analysis.
  */
 function generateAwayTeamFavoredAnalysis(game: Game, isValueBet: boolean): string {
-  // Generate analysis based on common baseball factors
   const factors = [
-    `${game.awayTeam} have been excellent on the road this season.`,
-    `${game.awayTeam}'s starting pitcher has dominated ${game.homeTeam} in previous matchups.`,
-    `${game.awayTeam} have a significant advantage in offensive production metrics.`,
-    `${game.homeTeam} have struggled against left-handed pitching, which they face today.`,
-    `Injuries to key players have weakened ${game.homeTeam}'s lineup.`,
-    `${game.awayTeam} have won 8 of their last 10 games overall.`,
-    `The pitching matchup strongly favors ${game.awayTeam}.`,
-    `${game.awayTeam}'s bullpen has been more reliable in high-leverage situations recently.`,
-    `${game.homeTeam} have been underperforming their expected win rate based on run differential.`,
-    `Recent lineup changes for ${game.awayTeam} have improved their offensive output.`
+    `${game.awayTeamAbbreviation || game.awayTeam} has been particularly strong in away games lately.`,
+    `The historical data for ${game.awayTeamAbbreviation || game.awayTeam}'s starting pitcher against this opponent is positive.`,
+    `${game.awayTeamAbbreviation || game.awayTeam} boasts a potent offense that travels well.`,
+    `${game.homeTeamAbbreviation || game.homeTeam} has shown some vulnerabilities that ${game.awayTeamAbbreviation || game.awayTeam} could exploit.`,
+    `Statistical trends indicate ${game.awayTeamAbbreviation || game.awayTeam} has a solid chance in this matchup.`,
   ];
-  
-  // Select 3-4 random factors
-  const factorCount = Math.floor(Math.random() * 2) + 3;
-  const selectedFactors: string[] = [];
-  const usedIndexes: number[] = [];
-  
-  for (let i = 0; i < factorCount; i++) {
-    let index = Math.floor(Math.random() * factors.length);
-    while (usedIndexes.includes(index)) {
-      index = Math.floor(Math.random() * factors.length);
-    }
-    usedIndexes.push(index);
-    selectedFactors.push(factors[index]);
-  }
-  
-  // Combine factors into analysis
+  const selectedFactors = factors.sort(() => 0.5 - Math.random()).slice(0, 2); // Pick 2 random factors
   let analysis = selectedFactors.join(' ');
-  
-  // Add value bet statement if applicable
-  if (isValueBet) {
-    analysis += ` The current moneyline of ${game.awayTeamMoneyline} for ${game.awayTeam} represents strong value as our model gives them a much higher chance of winning than what the odds suggest.`;
+  if (isValueBet && game.awayTeamMoneyline != null) {
+    analysis += ` The odds at ${game.awayTeamMoneyline > 0 ? '+' : ''}${game.awayTeamMoneyline} for ${game.awayTeamAbbreviation || game.awayTeam} could be undervalued.`;
   }
-  
   return analysis;
 }
 
 /**
- * Generates analysis text for total runs (over/under) recommendations
+ * Generates placeholder analysis text for total runs (over/under) recommendations by the legacy system.
+ * @param game The game object.
+ * @param totalRuns The predicted total runs line.
+ * @param isOver Whether the prediction is for 'Over'.
+ * @returns A string containing generated analysis.
  */
 function generateTotalRunsAnalysis(game: Game, totalRuns: number, isOver: boolean): string {
   const factors = isOver ? [
-    `Both teams rank in the top 10 in runs scored over the last 10 games.`,
-    `The starting pitchers for both teams have elevated ERAs in recent outings.`,
-    `The weather forecast indicates favorable hitting conditions with winds blowing out.`,
-    `This ballpark has averaged 9.2 runs per game this season, well above league average.`,
-    `Both teams have been hitting well against the opposing pitcher's throwing arm.`,
-    `The total has gone OVER in 6 of the last 8 games for both teams.`,
-    `Both teams have rested their top relievers, potentially leading to weaker bullpen performance.`,
-    `Historical matchups between these teams have produced high-scoring games.`
+    `Both ${game.homeTeamAbbreviation || game.homeTeam} and ${game.awayTeamAbbreviation || game.awayTeam} have offenses capable of putting up big numbers.`,
+    `Pitching matchups and recent bullpen usage suggest potential for more runs.`,
+    `Weather conditions might favor hitters today.`,
   ] : [
-    `Both starting pitchers have been in excellent form with sub-3.00 ERAs in their last three starts.`,
-    `The weather conditions (wind blowing in) and evening game time favor pitchers.`,
-    `Both teams have struggled offensively, ranking in the bottom third of the league in runs scored recently.`,
-    `The total has gone UNDER in 7 of the last 10 matchups between these teams.`,
-    `Both teams have their top relievers available after rest days.`,
-    `This ballpark has played as pitcher-friendly this season with an average of just 7.3 total runs per game.`,
-    `Both teams are missing key offensive players due to injuries.`,
-    `The umpire assigned to this game has a reputation for a pitcher-friendly strike zone.`
+    `Strong starting pitching is expected from both ${game.homeTeamAbbreviation || game.homeTeam} and ${game.awayTeamAbbreviation || game.awayTeam}.`,
+    `Both bullpens are well-rested and have been effective.`,
+    `Recent offensive trends for both teams suggest a tighter, lower-scoring game.`,
   ];
-  
-  // Select 3-4 random factors
-  const factorCount = Math.floor(Math.random() * 2) + 3;
-  const selectedFactors: string[] = [];
-  const usedIndexes: number[] = [];
-  
-  for (let i = 0; i < factorCount; i++) {
-    let index = Math.floor(Math.random() * factors.length);
-    while (usedIndexes.includes(index)) {
-      index = Math.floor(Math.random() * factors.length);
-    }
-    usedIndexes.push(index);
-    selectedFactors.push(factors[index]);
-  }
-  
-  // Combine factors into analysis
+  const selectedFactors = factors.sort(() => 0.5 - Math.random()).slice(0, 1); // Pick 1 random factor
   let analysis = selectedFactors.join(' ');
-  
-  // Add summary statement
-  if (isOver) {
-    analysis += ` These factors suggest a high-scoring game, making the OVER ${totalRuns} a strong play.`;
-  } else {
-    analysis += ` Based on these factors, we expect a lower-scoring contest, favoring the UNDER ${totalRuns}.`;
-  }
-  
+  analysis += ` The model leans ${isOver ? 'OVER' : 'UNDER'} ${totalRuns.toFixed(1)} runs in this contest.`;
   return analysis;
 }

@@ -1,0 +1,21 @@
+[debug] [2025-05-19T16:31:47.884Z] ----------------------------------------------------------------------
+[debug] [2025-05-19T16:31:47.887Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\cmill\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init
+[debug] [2025-05-19T16:31:47.888Z] CLI Version:   14.4.0
+[debug] [2025-05-19T16:31:47.888Z] Platform:      win32
+[debug] [2025-05-19T16:31:47.888Z] Node Version:  v20.19.0
+[debug] [2025-05-19T16:31:47.888Z] Time:          Mon May 19 2025 09:31:47 GMT-0700 (Pacific Daylight Time)
+[debug] [2025-05-19T16:31:47.889Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-05-19T16:31:47.897Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-05-19T16:31:47.898Z] > authorizing via signed-in user (ancientastronautsunearthed@gmail.com)
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  C:\Users\cmill\Projects\BaseballBettingPro
+
